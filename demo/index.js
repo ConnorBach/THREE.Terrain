@@ -2,6 +2,7 @@ var webglExists = ( function () { try { var canvas = document.createElement( 'ca
 
 var settingsForReload;
 var settings;
+var toggleEditDir = false;
 
 if (!webglExists) {
   alert('Your browser does not appear to support WebGL. You can try viewing this page anyway, but it may be slow and some things may not look as intended. Please try viewing on desktop Firefox or Chrome.');
@@ -475,29 +476,28 @@ document.querySelector('#heightmap').addEventListener('click', function (event) 
   var ctx = testCanvas.getContext("2d");
   var imageData = ctx.getImageData(0, 0, 64, 64);
   console.log('imageData: ', imageData);
-  var startX = mouses.x - 2;
-  var startY = mouses.y - 2;
+  var startX = Math.floor(mouses.x);
+  var startY = Math.floor(mouses.y);
 
   console.log('startX, startY', startX, startY);
-  /*
-  for(var i = startX; i < startX + 4; i++) {
-    for(var j = startY; j < startY + 4; j++) {
-      var pos = 4*(i + j*64);
-      console.log('pos: ', pos);
-      imageData.data[pos] += 50;
-      imageData.data[pos+1] += 50;
-      imageData.data[pos+2] += 50;
-      imageData.data[pos+3] = 255;
-    }
-  }*/
 
   for(var i = 0; i < 64; i++) {
     for(var j = 0; j < 64; j++) {
-      var pos = 4*(i + j*64);
-      imageData.data[pos] -= 40;
-      imageData.data[pos+1] -= 40;
-      imageData.data[pos+2] -= 40;
-      imageData.data[pos+3] = 255;
+      var a = i - startX;
+      var b = j - startY;
+      if(a*a + b*b <= 10*10) {
+        var pos = 4*(i + j*64);
+        if(toggleEditDir) {
+          imageData.data[pos] += 40;
+          imageData.data[pos+1] += 40;
+          imageData.data[pos+2] += 40;
+        } else {
+          imageData.data[pos] -= 40;
+          imageData.data[pos+1] -= 40;
+          imageData.data[pos+2] -= 40;
+        }
+        imageData.data[pos+3] = 255;
+      }
     }
   }
 
@@ -509,6 +509,18 @@ document.querySelector('#heightmap').addEventListener('click', function (event) 
   settings.heightmap = testCanvas;
   settings.Regenerate();
 });
+
+document.onkeypress = function (e) {
+  e = e || window.event;
+  // use e.keyCode
+  console.log("keypress");
+  if(e.key == "ArrowDown") {
+    toggleEditDir = false;
+  } else if( e.key == "ArrowUp") {
+    toggleEditDir = true;
+  }
+  console.log(toggleEditDir);
+};
 
 function __printCameraData() {
   var s = '';
