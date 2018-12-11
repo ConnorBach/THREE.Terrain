@@ -465,22 +465,48 @@ document.querySelector('#heightmap').addEventListener('click', function (event) 
   mouses.y = ((event.clientY - 22) / (149-22)) * 64;
   console.log("mouse clicked", mouses);
 
-  var canvas = THREE.Terrain.toHeightmap(
-    // terrainScene.children[0] is the most detailed version of the terrain mesh
-    terrainScene.children[0].geometry.vertices,
-    { xSegments: 63, ySegments: 63 }
-  );
+  console.log("terrainScene", terrainScene);
+  console.log("terrainScene.children[0].geometry.vertices", terrainScene.children[0].geometry.vertices);
 
-  console.log(canvas);
+  var testCanvas = toHeightmap2(terrainScene.children[0].geometry.vertices, 
+    { xSegments: 63, ySegments: 63 });
+  console.log('testCanvas: ', testCanvas);
 
-  var ctx = canvas.getContext('2d')
-  ctx.beginPath();
-  ctx.rect(mouses.x, mouses.y, 20, 20);
-  ctx.fillStyle = 'grey';
-  ctx.fill();
+  var ctx = testCanvas.getContext("2d");
+  var imageData = ctx.getImageData(0, 0, 64, 64);
+  console.log('imageData: ', imageData);
+  var startX = mouses.x - 2;
+  var startY = mouses.y - 2;
+
+  console.log('startX, startY', startX, startY);
+  /*
+  for(var i = startX; i < startX + 4; i++) {
+    for(var j = startY; j < startY + 4; j++) {
+      var pos = 4*(i + j*64);
+      console.log('pos: ', pos);
+      imageData.data[pos] += 50;
+      imageData.data[pos+1] += 50;
+      imageData.data[pos+2] += 50;
+      imageData.data[pos+3] = 255;
+    }
+  }*/
+
+  for(var i = 0; i < 64; i++) {
+    for(var j = 0; j < 64; j++) {
+      var pos = 4*(i + j*64);
+      imageData.data[pos] -= 40;
+      imageData.data[pos+1] -= 40;
+      imageData.data[pos+2] -= 40;
+      imageData.data[pos+3] = 255;
+    }
+  }
+
+  console.log('imageData2: ', imageData);
+  ctx.putImageData(imageData, 0, 0);
+
   console.log("here");
   console.log(settings);
-  settings.heightmap = canvas;
+  settings.heightmap = testCanvas;
   settings.Regenerate();
 });
 
@@ -794,3 +820,56 @@ document.querySelector('#heightmap').addEventListener('click', function (event) 
   scene.add(terrainScene);
   skyDome.visible = sand.visible = water.visible;
 }); */
+
+function getCanvasFromTerrain() {
+  var canvas = THREE.Terrain.toHeightmap(
+    // terrainScene.children[0] is the most detailed version of the terrain mesh
+    terrainScene.children[0].geometry.vertices,
+    { xSegments: 63, ySegments: 63 }
+  );
+  return canvas;
+}
+
+toHeightmap2 = function(g, options) {
+    console.log('==== toheightmap =====');
+    var hasMax = typeof options.maxHeight === 'undefined',
+        hasMin = typeof options.minHeight === 'undefined',
+        max = hasMax ? options.maxHeight : -Infinity,
+        min = hasMin ? options.minHeight :  Infinity;
+    if (!hasMax || !hasMin) {
+        var max2 = max,
+            min2 = min;
+        for (var k = 0, l = g.length; k < l; k++) {
+            if (g[k].z > max2) max2 = g[k].z;
+            if (g[k].z < min2) min2 = g[k].z;
+        }
+        if (!hasMax) max = max2;
+        if (!hasMin) min = min2;
+    }
+    var canvas = options.heightmap instanceof HTMLCanvasElement ? options.heightmap : document.createElement('canvas'),
+        context = canvas.getContext('2d'),
+        rows = options.ySegments + 1,
+        cols = options.xSegments + 1,
+        spread = options.maxHeight - options.minHeight;
+    canvas.width = cols;
+    canvas.height = rows;
+    var d = context.createImageData(canvas.width, canvas.height),
+        data = d.data;
+    console.log("loop vals: ", g[0].z, options.minHeight, spread)
+    for (var row = 0; row < rows; row++) {
+        for (var col = 0; col < cols; col++) {
+            //var i = row * cols + col,
+            var i = row * canvas.width + col;
+            idx = i * 4;
+            data[idx] = data[idx+1] = data[idx+2] = Math.round(((g[i].z + 100) / 200) * 255);
+            data[idx+3] = 255;
+            //console.log("writing values", Math.round(((g[i].z) / 100) * 255));
+            if(data[idx] != 0) {
+                console.log('in toheightmap: non zero');
+            }
+        }
+    }
+    console.log("returning a canvas", data);
+    context.putImageData(d, 0, 0);
+    return canvas;
+};

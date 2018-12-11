@@ -650,6 +650,7 @@ THREE.Terrain.fromHeightmap = function(g, options) {
  *   A canvas with the relevant heightmap painted on it.
  */
 THREE.Terrain.toHeightmap = function(g, options) {
+    console.log('==== toheightmap =====');
     var hasMax = typeof options.maxHeight === 'undefined',
         hasMin = typeof options.minHeight === 'undefined',
         max = hasMax ? options.maxHeight : -Infinity,
@@ -675,12 +676,18 @@ THREE.Terrain.toHeightmap = function(g, options) {
         data = d.data;
     for (var row = 0; row < rows; row++) {
         for (var col = 0; col < cols; col++) {
-            var i = row * cols + col,
+            //var i = row * cols + col,
+            var i = row * canvas.width + col;
             idx = i * 4;
             data[idx] = data[idx+1] = data[idx+2] = Math.round(((g[i].z - options.minHeight) / spread) * 255);
             data[idx+3] = 255;
+            console.log("writing values");
+            if(data[idx] != 0) {
+                console.log('in toheightmap: non zero');
+            }
         }
     }
+    console.log("returning a canvas");
     context.putImageData(d, 0, 0);
     return canvas;
 };
