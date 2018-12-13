@@ -3,6 +3,7 @@ var webglExists = ( function () { try { var canvas = document.createElement( 'ca
 var settingsForReload;
 var settings;
 var toggleEditDir = false;
+var circleSize = 10;
 
 if (!webglExists) {
   alert('Your browser does not appear to support WebGL. You can try viewing this page anyway, but it may be slow and some things may not look as intended. Please try viewing on desktop Firefox or Chrome.');
@@ -540,7 +541,7 @@ document.querySelector('#heightmap').addEventListener('click', function (event) 
     for(var j = 0; j < 64; j++) {
       var a = i - startX;
       var b = j - startY;
-      if(a*a + b*b <= 10*10) {
+      if(a*a + b*b <= circleSize*circleSize) {
         var pos = 4*(i + j*64);
         if(toggleEditDir) {
           imageData.data[pos] += 40;
@@ -576,6 +577,15 @@ document.onkeypress = function (e) {
   }
   console.log(toggleEditDir);
 };
+
+document.onkeypress = function (e) {
+  e = e || window.event;
+  if (e.key == "ArrowLeft" && circleSize>3) {
+    circleSize--;
+  } else if (e.key == "ArrowRight"){
+    circleSize++;
+  }
+}
 
 function __printCameraData() {
   var s = '';
