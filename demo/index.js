@@ -574,18 +574,22 @@ document.onkeypress = function (e) {
     toggleEditDir = false;
   } else if( e.key == "ArrowUp") {
     toggleEditDir = true;
+  } else if(e.key == "ArrowLeft" && circleSize>3) {
+    circleSize--;
+  } else if(e.key == "ArrowRight") {
+    circleSize++;
   }
   console.log(toggleEditDir);
 };
 
-document.onkeypress = function (e) {
+/*document.onkeypress = function (e) {
   e = e || window.event;
   if (e.key == "ArrowLeft" && circleSize>3) {
     circleSize--;
   } else if (e.key == "ArrowRight"){
     circleSize++;
   }
-}
+}*/
 
 function __printCameraData() {
   var s = '';
