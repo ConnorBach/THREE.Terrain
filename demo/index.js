@@ -26,6 +26,9 @@ var INV_MAX_FPS = 1 / 100,
     mouseY = 0,
     useFPS = false;
 
+var nightbutton =false;
+
+
 function animate() {
   stats.begin();
   draw();
@@ -39,6 +42,7 @@ function animate() {
   stats.end();
   if (!paused) {
     requestAnimationFrame(animate);
+
   }
 }
 
@@ -58,12 +62,15 @@ function stopAnimating() {
 }
 
 function setup() {
+  
   setupThreeJS();
   setupControls();
   setupWorld();
   watchFocus();
   setupDatGui();
+
   startAnimating();
+
 }
 
 function setupThreeJS() {
@@ -130,6 +137,13 @@ function setupDatGui() {
     var that = this;
     var mat = new THREE.MeshBasicMaterial({color: 0x5566aa, wireframe: true});
     var gray = new THREE.MeshPhongMaterial({ color: 0x88aaaa, specular: 0x444455, shininess: 10 });
+    var red = new THREE.MeshPhongMaterial({ color: 0xDB7093, specular: 0x444455, shininess: 10 });
+    
+    var tex = new THREE.TextureLoader().load( 'demo/img/3.jpg' );
+
+    // immediately use the texture for material creation
+    //var chris = new THREE.MeshBasicMaterial( { map: tex } );
+    var chris = new THREE.MeshPhongMaterial({  specular: 0x006400, shininess: 0.01 ,map: tex});
     var blend;
     var elevationGraph = document.getElementById('elevation-graph'),
         slopeGraph = document.getElementById('slope-graph'),
@@ -177,6 +191,12 @@ function setupDatGui() {
     this['width:length ratio'] = 1.0;
     this['Flight mode'] = useFPS;
     this['Light color'] = '#' + skyLight.color.getHexString();
+    this['Light intensity'] = skyLight.intensity;
+    //light
+    this['Night'] = false;
+    this.Light ='Day';
+
+
     this.spread = 60;
     this.scattering = 'PerlinAltitude';
     this.after = function(vertices, options) {
@@ -197,7 +217,7 @@ function setupDatGui() {
         after: that.after,
         easing: THREE.Terrain[that.easing],
         heightmap: h ? heightmapImage : (that.heightmap === 'influences' ? customInfluences : THREE.Terrain[that.heightmap]),
-        material: that.texture == 'Wireframe' ? mat : (that.texture == 'Blended' ? blend : gray),
+        material: that.texture == 'Wireframe' ? mat : (that.texture == 'Blended' ? blend : (that.texture == 'Redscale' ? red : (that.texture == 'Grayscale' ? gray : blend))),
         maxHeight: that.maxHeight - 100,
         minHeight: -100,
         steps: that.steps,
@@ -313,6 +333,21 @@ function setupDatGui() {
         else if (that.texture == 'Grayscale') {
           decoScene.children[0].material = gray;
         }
+        else if (that.texture == 'Redscale') {
+          decoScene.children[0].material = red;
+        }
+        else if (that.texture == 'Chrismas') {
+          decoScene.children[0].material = chris;
+        }
+
+        else if (that.Light == 'Night') {
+          skyLight.color.set(0x000000);
+         
+        }
+        else if (that.Light == 'Day') {
+          skyLight.color.set(0xffffff);
+          
+        }
         terrainScene.add(decoScene);
       }
     };
@@ -334,12 +369,31 @@ function setupDatGui() {
   heightmapFolder.add(settings, 'turbulent').onFinishChange(settings.Regenerate);
   heightmapFolder.open();
   var decoFolder = gui.addFolder('Decoration');
-  decoFolder.add(settings, 'texture', ['Blended', 'Grayscale', 'Wireframe']).onFinishChange(settings.Regenerate);
+  decoFolder.add(settings, 'texture', ['Blended', 'Grayscale', 'Redscale','Chrismas','Wireframe']).onFinishChange(settings.Regenerate);
   decoFolder.add(settings, 'scattering', ['Altitude', 'Linear', 'Cosine', 'CosineLayers', 'DiamondSquare', 'Particles', 'Perlin', 'PerlinAltitude', 'Simplex', 'Value', 'Weierstrass', 'Worley']).onFinishChange(settings['Scatter meshes']);
   decoFolder.add(settings, 'spread', 0, 100).step(1).onFinishChange(settings['Scatter meshes']);
-  decoFolder.addColor(settings, 'Light color').onChange(function(val) {
+
+  //decoFolder.addColor(settings, 'Light color').onChange(function(val) {
+   // skyLight.color.set(val);
+  //});
+
+//lighting folder ***********
+  var lightfolder = gui.addFolder('Light');
+  lightfolder.addColor(settings, 'Light color').onChange(function(val) {
     skyLight.color.set(val);
-  });
+  })
+  
+  lightfolder.add(settings, 'Light intensity', 0, 5).step(0.1).onChange(function(val) {
+    //skyLight.intensity.set(val);
+    skyLight.intensity = val;
+     })
+   lightfolder.add(settings, 'Light', ['Day','Night']).onFinishChange(settings.Regenerate);
+  
+
+
+
+  //********
+
   var sizeFolder = gui.addFolder('Size');
   sizeFolder.add(settings, 'size', 1024, 3072).step(256).onFinishChange(settings.Regenerate);
   sizeFolder.add(settings, 'maxHeight', 2, 300).step(2).onFinishChange(settings.Regenerate);
@@ -368,6 +422,7 @@ function setupDatGui() {
       document.getElementById('fpscontrols').className = '';
     }
   });
+
   gui.add(settings, 'Scatter meshes');
   gui.add(settings, 'Regenerate');
 
@@ -477,6 +532,8 @@ function buildTree() {
   var material = [
     new THREE.MeshLambertMaterial({ color: 0x3d2817 }), // brown
     new THREE.MeshLambertMaterial({ color: 0x2d4c1e }), // green
+    
+
   ];
 
   var c0 = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 12, 6, 1, true));
