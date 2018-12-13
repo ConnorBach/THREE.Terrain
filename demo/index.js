@@ -1,5 +1,9 @@
 var webglExists = ( function () { try { var canvas = document.createElement( 'canvas' ); return !!window.WebGLRenderingContext && ( canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' ) ); } catch( e ) { return false; } } )(); // jscs:ignore
 
+var settingsForReload;
+var settings;
+var toggleEditDir = false;
+
 if (!webglExists) {
   alert('Your browser does not appear to support WebGL. You can try viewing this page anyway, but it may be slow and some things may not look as intended. Please try viewing on desktop Firefox or Chrome.');
 }
@@ -211,12 +215,17 @@ function setupDatGui() {
       }
     };
     window.rebuild = this.Regenerate = function() {
+      console.log('in regenerate');
       var s = parseInt(that.segments, 10),
-          h = that.heightmap === 'heightmap.png';
+          h = that.heightmap === 'heightmap.png',
+          //checkCanvas = false;
+          checkCanvas = that.heightmap instanceof HTMLCanvasElement;
+      console.log('heightmap: ', h, that.heightmap, Object.prototype.toString.call(that.heightmap));
+      console.log(THREE.Terrain[that.heightmap]);
       var o = {
         after: that.after,
         easing: THREE.Terrain[that.easing],
-        heightmap: h ? heightmapImage : (that.heightmap === 'influences' ? customInfluences : THREE.Terrain[that.heightmap]),
+        heightmap: checkCanvas ? that.heightmap : (h ? heightmapImage : (that.heightmap === 'influences' ? customInfluences : THREE.Terrain[that.heightmap])),
         material: that.texture == 'Wireframe' ? mat : (that.texture == 'Blended' ? blend : (that.texture == 'Redscale' ? red : (that.texture == 'Grayscale' ? gray : blend))),
         maxHeight: that.maxHeight - 100,
         minHeight: -100,
@@ -230,6 +239,7 @@ function setupDatGui() {
         ySegments: Math.round(s * that['width:length ratio']),
         _mesh: typeof terrainScene === 'undefined' ? null : terrainScene.children[0], // internal only
       };
+      console.log(o);
       scene.remove(terrainScene);
       terrainScene = THREE.Terrain(o);
       applySmoothing(that.smoothing, o);
@@ -353,7 +363,9 @@ function setupDatGui() {
     };
   }
   var gui = new dat.GUI();
-  var settings = new Settings();
+  //var settings = new Settings();
+  settings = new Settings();
+  settingsForReload = settings;
   var heightmapFolder = gui.addFolder('Heightmap');
   heightmapFolder.add(settings, 'heightmap', ['Brownian', 'Cosine', 'CosineLayers', 'DiamondSquare', 'Fault', 'heightmap.png', 'Hill', 'HillIsland', 'influences', 'Particles', 'Perlin', 'PerlinDiamond', 'PerlinLayers', 'Simplex', 'SimplexLayers', 'Value', 'Weierstrass', 'Worley']).onFinishChange(settings.Regenerate);
   heightmapFolder.add(settings, 'easing', ['Linear', 'EaseIn', 'EaseInWeak', 'EaseOut', 'EaseInOut', 'InEaseOut']).onFinishChange(settings.Regenerate);
@@ -495,6 +507,75 @@ document.querySelector('#show-analytics').addEventListener('click', function(eve
   analytics.scrollTop = 0;
   analytics.classList.add('visible');
 }, false);
+
+/* Project Changes */
+//console.log('settings: ', settings);
+document.querySelector('#heightmap').addEventListener('click', function (event) {
+  //event.preventDefault();
+  var mouses = { x : 0, y : 0 };
+  //mouses.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / window.innerWidth ) * 2 - 1;
+  //mouses.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / window.innerHeight ) * 2 + 1;
+
+  // height map is (22, 22) top left to (149, 149) bottom right
+  mouses.x = ((event.clientX - 22) / (149-22)) * 64;
+  mouses.y = ((event.clientY - 22) / (149-22)) * 64;
+  console.log("mouse clicked", mouses);
+
+  console.log("terrainScene", terrainScene);
+  console.log("terrainScene.children[0].geometry.vertices", terrainScene.children[0].geometry.vertices);
+
+  var testCanvas = toHeightmap2(terrainScene.children[0].geometry.vertices, 
+    { xSegments: 63, ySegments: 63 });
+  console.log('testCanvas: ', testCanvas);
+
+  var ctx = testCanvas.getContext("2d");
+  var imageData = ctx.getImageData(0, 0, 64, 64);
+  console.log('imageData: ', imageData);
+  var startX = Math.floor(mouses.x);
+  var startY = Math.floor(mouses.y);
+
+  console.log('startX, startY', startX, startY);
+
+  for(var i = 0; i < 64; i++) {
+    for(var j = 0; j < 64; j++) {
+      var a = i - startX;
+      var b = j - startY;
+      if(a*a + b*b <= 10*10) {
+        var pos = 4*(i + j*64);
+        if(toggleEditDir) {
+          imageData.data[pos] += 40;
+          imageData.data[pos+1] += 40;
+          imageData.data[pos+2] += 40;
+        } else {
+          imageData.data[pos] -= 40;
+          imageData.data[pos+1] -= 40;
+          imageData.data[pos+2] -= 40;
+        }
+        imageData.data[pos+3] = 255;
+      }
+    }
+  }
+
+  console.log('imageData2: ', imageData);
+  ctx.putImageData(imageData, 0, 0);
+
+  console.log("here");
+  console.log(settings);
+  settings.heightmap = testCanvas;
+  settings.Regenerate();
+});
+
+document.onkeypress = function (e) {
+  e = e || window.event;
+  // use e.keyCode
+  console.log("keypress");
+  if(e.key == "ArrowDown") {
+    toggleEditDir = false;
+  } else if( e.key == "ArrowUp") {
+    toggleEditDir = true;
+  }
+  console.log(toggleEditDir);
+};
 
 function __printCameraData() {
   var s = '';
@@ -756,4 +837,108 @@ Number.prototype.round = function(v, a) {
   if (!a) a = 0;
   var m = Math.pow(10, a|0);
   return Math.round(v*m)/m;
+};
+
+
+/* Project Changes
+document.querySelector('#heightmap').addEventListener('click', function (event) {
+  //event.preventDefault();
+  var mouses = { x : 0, y : 0 };
+  //mouses.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / window.innerWidth ) * 2 - 1;
+  //mouses.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / window.innerHeight ) * 2 + 1;
+
+  // height map is (22, 22) top left to (149, 149) bottom right
+  mouses.x = (event.clientX) / (149-22);
+  mouses.y = event.clientY / (149-22);
+  console.log("mouse clicked", mouses);
+
+  var canvas = THREE.Terrain.toHeightmap(
+    // terrainScene.children[0] is the most detailed version of the terrain mesh
+    terrainScene.children[0].geometry.vertices,
+    { xSegments: 63, ySegments: 63 }
+  );
+
+  console.log(canvas);
+
+  var ctx = canvas.getContext('2d')
+  ctx.beginPath();
+  ctx.rect(64, 64, 64, 64);
+  ctx.fillStyle = 'black';
+  ctx.fill();
+
+  // Generate a terrain
+  var xS = 63, yS = 63;
+  var temp = {
+      easing: THREE.Terrain.Linear,
+      frequency: 2.5,
+      heightmap: THREE.Terrain.Cosine,
+      material: new THREE.MeshBasicMaterial({color: 0x5566aa}),
+      maxHeight: 100,
+      minHeight: -100,
+      steps: 1,
+      useBufferGeometry: false,
+      xSegments: xS,
+      xSize: 1024,
+      ySegments: yS,
+      ySize: 1024,
+  };
+  // Assuming you already have your global scene, add the terrain to it
+  scene.remove(terrainScene);
+  terrainScene = THREE.Terrain(temp);
+  //applySmoothing(that.smoothing, temp);
+  scene.add(terrainScene);
+  skyDome.visible = sand.visible = water.visible;
+}); */
+
+function getCanvasFromTerrain() {
+  var canvas = THREE.Terrain.toHeightmap(
+    // terrainScene.children[0] is the most detailed version of the terrain mesh
+    terrainScene.children[0].geometry.vertices,
+    { xSegments: 63, ySegments: 63 }
+  );
+  return canvas;
+}
+
+toHeightmap2 = function(g, options) {
+    console.log('==== toheightmap =====');
+    var hasMax = typeof options.maxHeight === 'undefined',
+        hasMin = typeof options.minHeight === 'undefined',
+        max = hasMax ? options.maxHeight : -Infinity,
+        min = hasMin ? options.minHeight :  Infinity;
+    if (!hasMax || !hasMin) {
+        var max2 = max,
+            min2 = min;
+        for (var k = 0, l = g.length; k < l; k++) {
+            if (g[k].z > max2) max2 = g[k].z;
+            if (g[k].z < min2) min2 = g[k].z;
+        }
+        if (!hasMax) max = max2;
+        if (!hasMin) min = min2;
+    }
+    var canvas = options.heightmap instanceof HTMLCanvasElement ? options.heightmap : document.createElement('canvas'),
+        context = canvas.getContext('2d'),
+        rows = options.ySegments + 1,
+        cols = options.xSegments + 1,
+        spread = options.maxHeight - options.minHeight;
+    canvas.width = cols;
+    canvas.height = rows;
+    var d = context.createImageData(canvas.width, canvas.height),
+        data = d.data;
+    console.log("loop vals: ", g[0].z, options.minHeight, spread)
+    for (var row = 0; row < rows; row++) {
+        for (var col = 0; col < cols; col++) {
+            //var i = row * cols + col,
+            var i = row * canvas.width + col;
+            idx = i * 4;
+            data[idx] = data[idx+1] = data[idx+2] = Math.round(((g[i].z + 100) / 200) * 255);
+            data[idx+3] = 255;
+            //console.log("writing values", Math.round(((g[i].z) / 100) * 255));
+            if(data[idx] != 0) {
+                console.log('in toheightmap: non zero');
+            }
+        }
+    }
+    console.log("returning a canvas", data);
+    context.putImageData(d, 0, 0);
+    return canvas;
 };
